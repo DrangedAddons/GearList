@@ -257,7 +257,7 @@ Check(src.parts[1] == "Booty Bay, Tester" and src.icon == NS.SOURCE_ICON.vendor 
     "sources: vendor in the source text, token and gold in the cost (" .. src.cost .. ")")
 src = NS.ItemSource(252561, true)
 local all = table.concat(src.parts, " | ")
-Check(all == "Leatherworking 300 | BoE" and src.plan == "craft" and src.cost:find("^mats ") and src.cost:find(NS.ShortMoney(500000), 1, true),
+Check(all == "Leatherworking 300 | BoE" and src.plan == "craft" and src.cost:find(" %(Materials%)$") and src.cost:find(NS.ShortMoney(500000), 1, true) == 1,
     "sources: crafted and BoE, cost is the cheaper route (" .. src.cost .. ")")
 local tip = {}
 for _, l in ipairs(src.tip) do tip[#tip + 1] = l[1] .. " = " .. tostring(l[2]) end
@@ -341,7 +341,7 @@ Check(row.item and row.item.slot == "HEAD" and row.text:GetText():find("Living C
     "window: first row is the helm with its source")
 Check(row.ench:GetText() == "Arcanum of Focus" and row.enchHit:IsShown(), "window: enchant column")
 Check(list.rows[6].item.slot == "WRISTS" and list.rows[6].ench:GetText() == "Bracer - Healing Power", "window: enchant names lose their first word")
-Check(row.cost:GetText():find("^mats ") and row.rep:GetText() == "", "window: cost column")
+Check(row.cost:GetText():find(" %(Materials%)$") and not row.cost:GetText():find("^mats") and row.rep:GetText() == "", "window: cost column")
 Check(list.rows[4].item.slot == "BACK" and list.rows[4].rep:GetText():find("Argent Dawn - Revered", 1, true) and list.rows[4].info:GetText():find("^Tarnished Real vendor")
     and list.rows[4].cost:GetText():find("^75"), "window: reputation column, built-in vendor price")
 Check(list.rows[5].cost:GetText() == "" and list.rows[5].rep:GetText() == "" and not list.rows[5].sicon:IsShown(), "window: finished rows have no cost, rep or source icon")

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.1
+- The Cost column puts the amount first and what it is after it: "45g (Materials)" for crafted gear and "45g (Auction)" for auction prices, in place of "mats 45g" and "AH 45g". The tooltips match.
+- The Cost column is a little wider so the longer text fits.
+
 ## 0.11.0
 - Rows you can get where you're standing are washed blue with a blue edge: every missing item that drops in the dungeon you're in, or is a reward from a quest there. Outside dungeons the same goes for the zone you're in, so a vendor's rows light up when you're in its zone. The window's title says how many, e.g. "3 items to get in Stratholme".
 - The Dungeons tab marks the dungeon you're in ("you are here") and washes its rows blue too.

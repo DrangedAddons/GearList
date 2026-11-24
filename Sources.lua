@@ -237,7 +237,7 @@ local function AddRecipe(out, r, profName, names, own)
     local head = profName .. (r.learn and (" " .. r.learn) or "")
     local cost
     if #mats > 0 and total > 0 then
-        cost = "mats " .. Money(total) .. (unpriced > 0 and "+" or "")
+        cost = Money(total) .. (unpriced > 0 and "+" or "") .. " (Materials)"
     end
     out.parts[#out.parts + 1] = head
     if out.kinds then out.kinds[#out.parts] = "craft" end
@@ -623,7 +623,7 @@ function NS.ItemSource(id, own)
     if bind == 2 then
         local price = AHPrice(id)
         Part("BoE", ICON.auction, "auction")
-        out.tip[#out.tip + 1] = { "Binds when equipped", price and ("Auction " .. Money(price)) or "|cff808080no auction price|r" }
+        out.tip[#out.tip + 1] = { "Binds when equipped", price and (Money(price) .. " (Auction)") or "|cff808080no auction price|r" }
         out.auction = price
     end
 
@@ -633,12 +633,13 @@ function NS.ItemSource(id, own)
     elseif out.recipe and (not out.auction or (out.recipe.mats and out.recipe.mats <= out.auction)) then
         out.plan = "craft"
         if out.recipe.mats then
-            out.cost = "mats " .. ShortMoney(out.recipe.mats) .. (out.recipe.unpriced > 0 and "+" or "")
+            -- The amount first, what it buys after: the column reads as a column of prices.
+            out.cost = ShortMoney(out.recipe.mats) .. (out.recipe.unpriced > 0 and "+" or "") .. " (Materials)"
             out.costSort = { 3, "", out.recipe.mats }
         end
     elseif out.auction then
         out.plan = "auction"
-        out.cost = "AH " .. ShortMoney(out.auction)
+        out.cost = ShortMoney(out.auction) .. " (Auction)"
         out.costSort = { 3, "", out.auction }
     end
 

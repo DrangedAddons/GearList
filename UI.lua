@@ -19,10 +19,10 @@ local NOTREADY = "Interface\\RaidFrame\\ReadyCheck-NotReady"
 local WAITING = "Interface\\RaidFrame\\ReadyCheck-Waiting"
 local QUESTION = "Interface\\Icons\\INV_Misc_QuestionMark"
 
-local WIDTH, ROW_H, ROWS = 990, 20, 17
+local WIDTH, ROW_H, ROWS = 1004, 20, 17
 local HEAD_H = 16
 -- x of each column inside a row
-local COL = { slot = 4, tick = 68, icon = 84, name = 104, src = 290, info = 344, cost = 510, rep = 622, etick = 756, ench = 772 }
+local COL = { slot = 4, tick = 68, icon = 84, name = 104, src = 290, info = 344, cost = 510, rep = 636, etick = 770, ench = 786 }
 -- column, its name, and where its clickable header ends
 local HEADERS = { { "slot", "Slot", "name" }, { "name", "Item", "src" }, { "src", "Source", "info" },
     { "info", "Details", "cost" }, { "cost", "Cost", "rep" }, { "rep", "Reputation", "etick" }, { "ench", "Enchant" } }
