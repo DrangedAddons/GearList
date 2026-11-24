@@ -179,6 +179,13 @@ Check(not pcall(J.Decode, '{"a":[1,2'), "json: cut-off text is refused")
 Check(not pcall(J.Decode, '{"a":1} extra'), "json: trailing text is refused")
 Check(not pcall(J.Decode, "hello"), "json: plain words are refused")
 
+-- Money: numbers with coin icons, no g/s/c letters
+local function Plain(text) return (text:gsub("|T.-|t", "#")) end
+Check(Plain(NS.Money(1234567)) == "123#" and Plain(NS.Money(63095)) == "6# 30#" and Plain(NS.Money(4550)) == "45# 50#" and Plain(NS.Money(7)) == "7#",
+    "money: two biggest coins, as icons")
+Check(Plain(NS.ShortMoney(250000)) == "25#" and Plain(NS.ShortMoney(63095)) == "6# 30#" and NS.Money(10000):find("UI-GoldIcon", 1, true)
+    and not NS.Money(1234567):find("%d[gsc]"), "money: whole gold from 10 up in the cost column, no letters")
+
 -- Reading the export
 local set, err = NS.ParseExport(SAMPLE)
 Check(set and #set.items == 17, "export: 17 items" .. (err and (" (" .. err .. ")") or ""))
@@ -246,11 +253,11 @@ local vend = db.vendors[272439]
 Check(vend and vend.gold == 150000 and vend.costs[1].id == 226404 and vend.costs[1].n == 25 and vend.npc == "Tester",
     "sources: vendor price read at the merchant")
 local src = NS.ItemSource(272439, true)
-Check(src.parts[1] == "Booty Bay, Tester" and src.icon == NS.SOURCE_ICON.vendor and src.cost:find("ff606025|r|T1:", 1, true) and src.cost:find("15g", 1, true),
+Check(src.parts[1] == "Booty Bay, Tester" and src.icon == NS.SOURCE_ICON.vendor and src.cost:find("ff606025|r|T1:", 1, true) and src.cost:find(NS.ShortMoney(150000), 1, true),
     "sources: vendor in the source text, token and gold in the cost (" .. src.cost .. ")")
 src = NS.ItemSource(252561, true)
 local all = table.concat(src.parts, " | ")
-Check(all == "Leatherworking 300 | BoE" and src.plan == "craft" and src.cost:find("^mats ") and src.cost:find("50g", 1, true),
+Check(all == "Leatherworking 300 | BoE" and src.plan == "craft" and src.cost:find("^mats ") and src.cost:find(NS.ShortMoney(500000), 1, true),
     "sources: crafted and BoE, cost is the cheaper route (" .. src.cost .. ")")
 local tip = {}
 for _, l in ipairs(src.tip) do tip[#tip + 1] = l[1] .. " = " .. tostring(l[2]) end
@@ -276,9 +283,9 @@ Check(src.parts[1] == "Honor vendor" and src.cost == "10500 Honor Points |cffff6
     "sources: honor and marks, the mark as a count and its icon (" .. tostring(src.cost) .. ")")
 Check(NS.ItemSource(272439, true).parts[1] == "Booty Bay, Tester", "sources: what the merchant window showed beats the built-in table")
 src = NS.ItemSource(226780, true)
-Check(src.parts[1] == "Vendor" and src.cost == "|cffffd10025g|r" and src.plan == "vendor", "sources: built-in gold price, seller not named (" .. tostring(src.cost) .. ")")
+Check(src.parts[1] == "Vendor" and src.cost == NS.ShortMoney(250000) and src.plan == "vendor", "sources: built-in gold price, seller not named (" .. tostring(src.cost) .. ")")
 src = NS.ItemSource(12252, true)
-Check(src.parts[1] == "Zarena Cromwind" and src.cost:find("6g", 1, true), "sources: built-in gold price with its seller (" .. tostring(src.cost) .. ")")
+Check(src.parts[1] == "Zarena Cromwind" and src.cost == NS.ShortMoney(63095), "sources: built-in gold price with its seller (" .. tostring(src.cost) .. ")")
 local nBuilt = 0
 for _ in pairs(NS.VENDORS) do nBuilt = nBuilt + 1 end
 Check(nBuilt > 2000, "sources: built-in table has " .. nBuilt .. " items")

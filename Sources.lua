@@ -22,25 +22,34 @@ local ADDON, NS = ...
 ---------------------------------------------------------
 --  SECTION: Small helpers
 ---------------------------------------------------------
+-- Money the way vendors show it: a number and the coin's icon, no letters.
+local GOLD = "|TInterface\\MoneyFrame\\UI-GoldIcon:12:12:1:0|t"
+local SILVER = "|TInterface\\MoneyFrame\\UI-SilverIcon:12:12:1:0|t"
+local COPPER = "|TInterface\\MoneyFrame\\UI-CopperIcon:12:12:1:0|t"
+
+local function Gold(g)
+    return (BreakUpLargeNumbers and BreakUpLargeNumbers(g) or tostring(g)) .. GOLD
+end
+
+-- The two biggest coins that matter: gold alone from 100, else gold and silver,
+-- else silver and copper.
 local function Money(copper)
     copper = math.floor((copper or 0) + 0.5)
     local g, s, c = math.floor(copper / 10000), math.floor(copper / 100) % 100, copper % 100
-    if g >= 100 then
-        return ("|cffffd100%sg|r"):format(BreakUpLargeNumbers and BreakUpLargeNumbers(g) or g)
-    end
-    if g > 0 then return ("|cffffd100%dg|r |cffc7c7cf%ds|r"):format(g, s) end
-    if s > 0 then return ("|cffc7c7cf%ds|r |cffeda55f%dc|r"):format(s, c) end
-    return ("|cffeda55f%dc|r"):format(c)
+    if g >= 100 then return Gold(g) end
+    if g > 0 then return Gold(g) .. " " .. s .. SILVER end
+    if s > 0 then return s .. SILVER .. " " .. c .. COPPER end
+    return c .. COPPER
 end
 NS.Money = Money
 
--- For a narrow column: whole gold from 10g up.
+-- For a narrow column: whole gold from 10 gold up.
 local function ShortMoney(copper)
     copper = math.floor((copper or 0) + 0.5)
     if copper < 100000 then return Money(copper) end
-    local g = math.floor(copper / 10000 + 0.5)
-    return ("|cffffd100%sg|r"):format(BreakUpLargeNumbers and BreakUpLargeNumbers(g) or g)
+    return Gold(math.floor(copper / 10000 + 0.5))
 end
+NS.ShortMoney = ShortMoney
 
 local function AHPrice(id)
     local api = Auctionator and Auctionator.API and Auctionator.API.v1

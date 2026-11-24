@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.10.2
+- Gold, silver and copper show as coin icons after the number, the way vendors show prices, in place of the letters g, s and c.
+
 ## 0.10.1
 - The addon has its own icon file now (the parchment note it already used), so the DrangedAddons manager can show it.
 
