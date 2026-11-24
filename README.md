@@ -17,6 +17,10 @@ One line per slot: the slot, the item, an icon for the kind of source, the detai
 
 A small icon left of the source says what kind it is: skull for a boss or creature, quest mark for a quest (the text is then just the quest's name), vendor bag or the currency's icon for a vendor, the profession's icon for crafted gear, a chest, a bag for a world drop, a gold coin for a bind-on-equip item.
 
+## Where you are
+
+On your own list, rows you can get where you're standing are washed blue: drops and quest rewards of the dungeon you're in, or sources in the zone you're in (a vendor, a quest, a world boss). The window's title counts them. The Dungeons tab marks the same dungeon. All wings of a dungeon light up together.
+
 ## The Dungeons tab
 
 Swaps the list for the missing items by dungeon. The dungeon with the most items you still need is at the top, and under each dungeon are its bosses, in the dungeon's own order, with the item each one drops. Quest rewards come after the bosses. A line at the bottom counts the missing items that don't come from a dungeon. Needs the DungeonJournal addon.

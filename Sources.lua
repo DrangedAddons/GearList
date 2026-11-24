@@ -361,7 +361,7 @@ end
 -- QuestieDB keeps, for every item, the quests that reward it and the creatures,
 -- objects and vendors it comes from. It's read through the globals it sets up
 -- (ItemDB, QuestDB, NpcDB, ObjectDB), one field function per column.
-local questie = {} -- itemID -> { quests = { { name, text } }, drops = { { text, chest } }, world, vendor }
+local questie = {} -- itemID -> { quests = { { name, text, zone } }, drops = { { text, chest, zone } }, world, vendor, vendorZone }
 local MAX_DROPPERS = 5 -- dropped by more creatures than this, it's a world drop
 
 local function QField(db, field, id)
@@ -402,7 +402,7 @@ local function Questie(id)
             seen[name] = true
             -- zoneOrSort is a zone ID when positive.
             local zone = AreaName(QField("QuestDB", "zoneOrSort", questID))
-            q.quests[#q.quests + 1] = { name = name, text = Placed(zone, "Quest: " .. name) }
+            q.quests[#q.quests + 1] = { name = name, text = Placed(zone, "Quest: " .. name), zone = zone }
         end
     end
 
@@ -415,10 +415,11 @@ local function Questie(id)
         local function Dropper(db, dropID)
             local name = QField(db, "name", dropID)
             if type(name) ~= "string" then return end
-            local text = Placed(AreaName(QField(db, "zoneID", dropID)), name)
+            local zone = AreaName(QField(db, "zoneID", dropID))
+            local text = Placed(zone, name)
             if not had[text] then
                 had[text] = true
-                q.drops[#q.drops + 1] = { text = text, chest = (db == "ObjectDB") }
+                q.drops[#q.drops + 1] = { text = text, chest = (db == "ObjectDB"), zone = zone }
             end
         end
         for _, npcID in ipairs(npcs) do Dropper("NpcDB", npcID) end
@@ -431,12 +432,63 @@ local function Questie(id)
         local friendly = QField("NpcDB", "friendlyToFaction", npcID)
         local name = QField("NpcDB", "name", npcID)
         if type(name) == "string" and (type(friendly) ~= "string" or friendly:find(side, 1, true)) then
-            q.vendor = Placed(AreaName(QField("NpcDB", "zoneID", npcID)), name)
+            q.vendorZone = AreaName(QField("NpcDB", "zoneID", npcID))
+            q.vendor = Placed(q.vendorZone, name)
             break
         end
     end
     questie[id] = q
     return q
+end
+
+---------------------------------------------------------
+--  SECTION: Where you are
+---------------------------------------------------------
+-- The names of where you're standing: the instance's inside a dungeon or raid, and the zone's.
+function NS.Here()
+    local names = {}
+    if IsInInstance and GetInstanceInfo then
+        local inside, kind = IsInInstance()
+        if inside and (kind == "party" or kind == "raid") then
+            local name = GetInstanceInfo()
+            if type(name) == "string" and name ~= "" then names[#names + 1] = name end
+        end
+    end
+    local zone = GetRealZoneText and GetRealZoneText()
+    if type(zone) == "string" and zone ~= "" and zone ~= names[1] then names[#names + 1] = zone end
+    return names
+end
+
+local function Norm(name)
+    return (name:lower():gsub("^%s*the%s+", ""):gsub("%s+$", ""))
+end
+
+-- The game and the journal don't always name a dungeon alike ("Stratholme" and
+-- "Stratholme: Living", "Blackrock Spire" and "Lower Blackrock Spire", "The Temple of
+-- Atal'Hakkar" and "Sunken Temple"). So a place matches when the names are the same,
+-- when the part before a colon is, when one holds the other, or through one of the
+-- journal's own search aliases. Every wing of a dungeon matches while you're in it.
+local function SamePlace(place, here)
+    local a, b = Norm(place), Norm(here)
+    if a == b or a:match("^(.-):") == b then return true end
+    if #a >= 6 and #b >= 6 and (a:find(b, 1, true) or b:find(a, 1, true)) then return true end
+    local FDJ = _G.ForeverDungeonJournal_NS
+    local all = type(FDJ) == "table" and FDJ.DUNGEON_SEARCH_ALIASES
+    local aliases = type(all) == "table" and all[place]
+    for _, alias in ipairs(type(aliases) == "table" and aliases or {}) do
+        if type(alias) == "string" and #alias >= 6 and Norm(alias) == b then return true end
+    end
+    return false
+end
+
+-- Is any of these places (a source's, or one dungeon's name) where you are? names = NS.Here().
+function NS.IsHere(places, names)
+    for _, place in ipairs(places or {}) do
+        for _, here in ipairs(names or {}) do
+            if SamePlace(place, here) then return true end
+        end
+    end
+    return false
 end
 
 ---------------------------------------------------------
@@ -448,12 +500,13 @@ end
 -- part's: "drop", "chest", "world", "quest", "vendor", "currency", "craft",
 -- "auction"), cost (gold or token amounts) and rep (reputation needed), each
 -- short text. For sorting by cost: costSort = { group, name, amount }, group 1
--- currencies, 2 token items, 3 gold. For the tooltip:
+-- currencies, 2 token items, 3 gold. places = every dungeon or zone it can be
+-- got in, for NS.IsHere. For the tooltip:
 -- tip = { { left, right }, ... }. And the pieces themselves: vendor,
 -- recipe ({ r, prof, mats, unpriced }), journal, auction (price), reqs, and
 -- plan: "vendor", or the cheaper of "craft" and "auction".
 function NS.ItemSource(id, own)
-    local out = { parts = {}, kinds = {}, tip = {}, costs = {} }
+    local out = { parts = {}, kinds = {}, tip = {}, costs = {}, places = {} }
     -- Every part keeps its kind; the first part's icon and kind are the row's.
     local function Part(text, icon, kind)
         out.parts[#out.parts + 1] = text
@@ -496,7 +549,10 @@ function NS.ItemSource(id, own)
             end
         end
         local who = "Sold by " .. (v.npc or "a vendor")
-        if zone then who = who .. " (" .. zone .. ")" end
+        if zone then
+            who = who .. " (" .. zone .. ")"
+            out.places[#out.places + 1] = zone
+        end
         out.tip[#out.tip + 1] = { who, cost ~= "" and cost or nil }
         out.vendor = v
 
@@ -520,6 +576,7 @@ function NS.ItemSource(id, own)
         -- A drop: the place first, then who, "Stratholme, Ramstein the Gorger". A quest:
         -- its name alone, since the icon says it's a quest. The tooltip spells both out.
         local text = j.where .. ", " .. (j.kind == "quest" and "Quest: " or "") .. j.who
+        out.places[#out.places + 1] = j.where
         if n == 1 then
             if j.kind == "quest" then Part(j.who, ICON.quest, "quest") else Part(text, ICON.drop, "drop") end
         end
@@ -540,6 +597,7 @@ function NS.ItemSource(id, own)
                 if first then Part(quest.name, ICON.quest, "quest") end
                 first = false
                 out.tip[#out.tip + 1] = { quest.text }
+                out.places[#out.places + 1] = quest.zone
             end
         end
         if not journalDrop then
@@ -550,11 +608,13 @@ function NS.ItemSource(id, own)
             for n, drop in ipairs(q.drops) do
                 if n == 1 then Part(drop.text, drop.chest and ICON.chest or ICON.drop, drop.chest and "chest" or "drop") end
                 out.tip[#out.tip + 1] = { drop.text }
+                out.places[#out.places + 1] = drop.zone
             end
         end
         if not v and q.vendor then
             Part(q.vendor, ICON.vendor, "vendor")
             out.tip[#out.tip + 1] = { "Sold by " .. q.vendor }
+            out.places[#out.places + 1] = q.vendorZone
         end
     end
 

@@ -8,6 +8,8 @@
 --     needs, and its enchant. Click a column's name to sort by it; Slot puts
 --     the character-sheet order back. Right-click a column's name to filter.
 --   Dungeons: the missing items by dungeon, most items first, then by boss.
+-- On both, what you can get where you're standing (the dungeon you're in, or
+-- the zone) is washed blue.
 
 local ADDON, NS = ...
 local UI = NS.UI
@@ -32,6 +34,7 @@ local DHEADERS = { { "boss", "Boss" }, { "name", "Item" }, { "slot", "Slot" } }
 
 local frame, list, dlist, empty, deleteBtn
 local headers = { gear = {}, dungeons = {} } -- each view's column names
+local hereNames = {} -- where you are (NS.Here), read at each refresh; empty for another character's list
 local view = { char = nil, set = nil } -- whose list, and which one, is on screen
 
 ---------------------------------------------------------
@@ -136,6 +139,16 @@ local function Decorate(row)
     row.have:SetPoint("TOPLEFT", 0, -1)
     row.have:SetPoint("BOTTOMLEFT", 0, 1)
     row.have:SetWidth(COL.etick - 6)
+    -- A blue wash and edge on a row you can get where you're standing.
+    row.here = row:CreateTexture(nil, "BACKGROUND")
+    row.here:SetPoint("TOPLEFT", 0, -1)
+    row.here:SetPoint("BOTTOMRIGHT", 0, 1)
+    row.here:SetColorTexture(0.25, 0.6, 1, 0.2)
+    row.hereBar = row:CreateTexture(nil, "BORDER")
+    row.hereBar:SetPoint("TOPLEFT", 0, -1)
+    row.hereBar:SetPoint("BOTTOMLEFT", 0, 1)
+    row.hereBar:SetWidth(3)
+    row.hereBar:SetColorTexture(0.35, 0.75, 1, 1)
     row.ehave = row:CreateTexture(nil, "BACKGROUND")
     row.ehave:SetPoint("TOPLEFT", COL.etick - 6, -1)
     row.ehave:SetPoint("BOTTOMRIGHT", 0, 1)
@@ -220,6 +233,8 @@ local function Render(row, e)
     row.cost:SetText("")
     row.rep:SetText("")
     row.sicon:Hide()
+    row.here:Hide()
+    row.hereBar:Hide()
     if e.st == "equipped" then
         row.info:SetText("Equipped"); row.info:SetTextColor(0.3, 1, 0.3)
     elseif e.st == "bags" then
@@ -241,6 +256,9 @@ local function Render(row, e)
         end
         row.cost:SetText(src.cost or "")
         row.rep:SetText(src.rep or "")
+        local here = NS.IsHere(src.places, hereNames)
+        row.here:SetShown(here)
+        row.hereBar:SetShown(here)
     end
 
     row.enchHit:SetShown(e.ench ~= nil)
@@ -324,8 +342,9 @@ end
 local function RenderDungeon(row, d)
     row.text:ClearAllPoints()
     if d.e then
-        -- A boss's name shows on its first item only.
-        row.band:Hide()
+        -- A boss's name shows on its first item only. Blue when it's the dungeon you're in.
+        row.band:SetShown(d.here == true)
+        row.band:SetColorTexture(0.25, 0.6, 1, 0.14)
         row.boss:SetText(d.first and d.who or "")
         row.icon:SetTexture(ItemIcon(d.e.id))
         row.icon:Show()
@@ -343,7 +362,8 @@ local function RenderDungeon(row, d)
     row.text:SetWidth(WIDTH - 200)
     if d.dungeon then
         row.band:Show()
-        row.text:SetText("|cffffd100" .. d.dungeon .. "|r")
+        if d.here then row.band:SetColorTexture(0.25, 0.6, 1, 0.3) else row.band:SetColorTexture(1, 1, 1, 0.07) end
+        row.text:SetText("|cffffd100" .. d.dungeon .. "|r" .. (d.here and "   |cff66bbffyou are here|r" or ""))
         row.count:SetText(d.count .. (d.count == 1 and " item" or " items"))
     else
         row.band:Hide()
@@ -639,6 +659,17 @@ local function Refresh()
             and (", as of " .. date("%d %b %H:%M", set.scanned))
             or ", not checked on that character yet")
     end
+    -- On your own list: how much of it you can get where you are.
+    hereNames = own and NS.Here() or {}
+    if set and own and #hereNames > 0 then
+        local n = 0
+        for _, e in ipairs(set.items) do
+            if not NS.ItemDone(e) and NS.IsHere(NS.ItemSource(e.id, true).places, hereNames) then n = n + 1 end
+        end
+        if n > 0 then
+            title = title .. ": " .. n .. (n == 1 and " item" or " items") .. " to get in " .. hereNames[1]
+        end
+    end
     frame.nsTitle:SetText(title)
 
     local tab = CurrentTab()
@@ -660,6 +691,12 @@ local function Refresh()
 
     if tab == "dungeons" then
         local rows, others = NS.DungeonRows(set)
+        -- The dungeon you're in, and everything under it.
+        local inHere = false
+        for _, r in ipairs(rows or {}) do
+            if r.dungeon then inHere = NS.IsHere({ r.dungeon }, hereNames) end
+            r.here = inHere or nil
+        end
         if not rows then
             rows = {}
             empty:SetText("Dungeon drops come from the DungeonJournal addon, and it isn't loaded.")
@@ -799,6 +836,18 @@ end
 function NS.OnChanged()
     if frame and frame:IsShown() then UI.RefreshAll() end
 end
+
+-- Walking into a dungeon or a new zone changes what's highlighted.
+local moved = CreateFrame("Frame")
+for _, event in ipairs({ "ZONE_CHANGED_NEW_AREA", "ZONE_CHANGED", "PLAYER_ENTERING_WORLD" }) do
+    pcall(moved.RegisterEvent, moved, event)
+end
+moved:SetScript("OnEvent", function()
+    if not (frame and frame:IsShown()) then return end
+    C_Timer.After(0.5, function()
+        if frame:IsShown() then UI.RefreshAll() end
+    end)
+end)
 
 -- Item names, links and prices arrive late; redraw once they do.
 local late = CreateFrame("Frame")

@@ -428,6 +428,48 @@ Check(#list.data == 0, "filter: nothing matching shows the note, not an error")
 F.setFilter("slot", "@clear")
 Check(#list.data == 17, "filter: all clear again")
 
+-- Where you are: rows you can get here are washed blue
+local IN, ZONE = nil, "Booty Bay"
+function IsInInstance() return IN ~= nil, IN and "party" or "none" end
+function GetInstanceInfo() return IN end
+function GetRealZoneText() return ZONE end
+local function HereRows()
+    local n, ids = 0, {}
+    for _, r in ipairs(list.rows) do
+        if r.item and r:IsShown() and r.here:IsShown() then n = n + 1; ids[r.item.id] = true end
+    end
+    return n, ids
+end
+NS.Changed()
+local nHere, hereIds = HereRows()
+Check(nHere == 1 and hereIds[272439] and GearListFrame.nsTitle:GetText() == "Gear List: 1 item to get in Booty Bay",
+    "here: the vendor in your zone (" .. nHere .. " row, title says so)")
+IN, ZONE = "Stratholme", "Stratholme"
+FireEvent("ZONE_CHANGED_NEW_AREA")
+FlushTimers()
+nHere, hereIds = HereRows()
+Check(nHere == 3 and hereIds[13360] and hereIds[18723] and hereIds[13178] and list.rows[2].hereBar:IsShown()
+    and GearListFrame.nsTitle:GetText() == "Gear List: 3 items to get in Stratholme", "here: inside a dungeon, its drops and quest reward (" .. nHere .. " rows)")
+Check(not list.rows[5].here:IsShown(), "here: a row you already have isn't highlighted")
+ForeverDungeonJournal_NS.DUNGEON_SEARCH_ALIASES = { ["Sunken Temple"] = { "st", "sunken", "temple of atal'hakkar" } }
+Check(NS.IsHere({ "Stratholme: Living" }, { "Stratholme" }) and NS.IsHere({ "Dire Maul: East" }, { "Dire Maul" })
+    and NS.IsHere({ "Lower Blackrock Spire" }, { "Blackrock Spire" }) and NS.IsHere({ "The Deadmines" }, { "Deadmines" })
+    and NS.IsHere({ "Sunken Temple" }, { "The Temple of Atal'Hakkar" }), "here: the journal's dungeon names match the game's")
+Check(not NS.IsHere({ "Scholomance" }, { "Stratholme" }) and not NS.IsHere({ "Blackrock Depths" }, { "Blackrock Spire" })
+    and not NS.IsHere({ "Sunken Temple" }, { "st" }), "here: other dungeons don't")
+db.tab = "dungeons"
+NS.Changed()
+local dh = GearListFrame.dungeonList
+Check(dh.rows[1].text:GetText():find("Stratholme", 1, true) and dh.rows[1].text:GetText():find("you are here", 1, true)
+    and dh.rows[2].band:IsShown() and dh.rows[4].band:IsShown(), "here: Dungeons tab marks the dungeon you're in and its rows")
+Check(dh.rows[5].text:GetText():find("Scholomance", 1, true) and not dh.rows[5].text:GetText():find("you are here", 1, true)
+    and not dh.rows[6].band:IsShown() and not dh.rows[7].band:IsShown(), "here: other dungeons and the note stay plain")
+db.tab = "gear"
+IN, ZONE = nil, "Elwynn Forest"
+FireEvent("ZONE_CHANGED_NEW_AREA")
+FlushTimers()
+Check(HereRows() == 0 and GearListFrame.nsTitle:GetText() == "Gear List", "here: nothing highlighted where nothing drops")
+
 -- Dungeons view
 local rows, others = NS.DungeonRows(NS.FindSet(KEY, "resto"))
 Check(rows[1].dungeon == "Stratholme" and rows[1].count == 3 and rows[5].dungeon == "Scholomance" and rows[5].count == 1,

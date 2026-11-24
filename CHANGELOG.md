@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.0
+- Rows you can get where you're standing are washed blue with a blue edge: every missing item that drops in the dungeon you're in, or is a reward from a quest there. Outside dungeons the same goes for the zone you're in, so a vendor's rows light up when you're in its zone. The window's title says how many, e.g. "3 items to get in Stratholme".
+- The Dungeons tab marks the dungeon you're in ("you are here") and washes its rows blue too.
+- It follows you as you zone. Every wing of a dungeon lights up while you're inside, since the game doesn't say which wing it is. Only on your own character's list.
+
 ## 0.10.2
 - Gold, silver and copper show as coin icons after the number, the way vendors show prices, in place of the letters g, s and c.
 
