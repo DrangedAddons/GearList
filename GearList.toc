@@ -1,0 +1,29 @@
+## Interface: 16001
+## Title: GearList
+## Notes: Paste a gear set exported from sixtyupgrades.com and get a checklist of every slot's item and enchant for the character you pick, ticked off from what it wears and carries, with what each missing item costs, the reputation it needs, and a view of which dungeon bosses drop the rest.
+## Author: Dranged
+## Version: 0.10.1
+## OptionalDeps: Auctionator, CraftRoute, ForeverDungeonJournal, Questie, QuestieDB, EllesmereUI
+## X-DrangedAddons-Games: _forever_
+## X-DrangedHub-Frame: GearListConfig
+## X-DrangedHub-Open: /gearlist config
+## X-DrangedHub-Crop: 42
+## X-DrangedHub-Actions: Gear list=/gearlist; Import=/gearlist import
+## IconTexture: Interface\AddOns\GearList\icon
+## AddonCompartmentFunc: GearList_OnCompartmentClick
+## SavedVariables: GearListDB
+
+Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
+Libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
+Theme.lua
+Widgets.lua
+Window.lua
+Json.lua
+Core.lua
+Data\Vendors.lua
+Sources.lua
+UI.lua
+Import.lua
+Config.lua

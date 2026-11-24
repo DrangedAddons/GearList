@@ -1,0 +1,16 @@
+{
+  "source": "https://www.wowhead.com/forever/currency=515/darkmoon-prize-ticket and /forever/currency=3402/merchants-favor (the \"Currency for\" lists, gear rows)",
+  "collected": "2026-11-24",
+  "zones": {},
+  "currencies": { "515": "Darkmoon Prize Ticket", "3402": "Merchant's Favor" },
+  "columns": ["id", "name", "cost", "vendor", "vendorId", "zone", "source", "sources", "class", "slot"],
+  "rows": [
+    [19491, "Amulet of the Darkmoon", [[0,[[515,1200]],[]]], null, null, null, [4,5], 2, 4, 2],
+    [19426, "Orb of the Darkmoon", [[0,[[515,1200]],[]]], null, null, null, [4,5], 2, 4, 2],
+    [19295, "Darkmoon Flower", [[0,[[515,5]],[]]], null, null, null, [4,5], 2, 4, 23],
+    [19293, "Last Year's Mutton", [[0,[[515,50]],[]]], null, null, null, [4,5], 2, 2, 13],
+    [19292, "Last Month's Mutton", [[0,[[515,10]],[]]], null, null, null, [4,5], 2, 2, 13],
+    [262765, "Azeroth Commerce Authority Tabard", [[0,[[3402,200]],[]]], "Tamelyn Aldridge", null, 44, [5], 1, 4, 19],
+    [262764, "Durotar Supply and Logistics Tabard", [[0,[[3402,200]],[]]], "Gishah", null, 17, [5], 1, 4, 19]
+  ]
+}

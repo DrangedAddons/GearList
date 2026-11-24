@@ -1,0 +1,36 @@
+{
+    "name": "resto",
+    "phase": 1,
+    "character": {
+        "name": "testdruñ",
+        "level": 60,
+        "gameClass": "DRUID",
+        "race": "HIGHORDERSKYBORNE",
+        "faction": "ALLIANCE"
+    },
+    "items": [
+        { "name": "Living Crown", "id": 252561, "enchant": { "name": "Arcanum of Focus", "id": 2544, "spellId": 22844 }, "slot": "HEAD" },
+        { "name": "Animated Chain Necklace", "id": 18723, "enchant": { "name": "Enchant Necklace - Healing Power", "id": 8219, "spellId": 1249058 }, "slot": "NECK" },
+        { "name": "Living Shoulders", "id": 15061, "enchant": { "name": "Resilience of the Scourge", "id": 2715, "spellId": 29475 }, "slot": "SHOULDERS" },
+        { "name": "Forest's Embrace", "id": 22272, "enchant": { "name": "Mystic Rugged Armor Kit", "id": 8492, "spellId": 1254770 }, "acquired": true, "slot": "CHEST" },
+        { "name": "Feralheart Cord", "id": 226780, "slot": "WAIST" },
+        { "name": "Padre's Trousers", "id": 18386, "enchant": { "name": "Arcanum of Focus", "id": 2544, "spellId": 22844 }, "slot": "LEGS" },
+        { "name": "Verdant Footpads", "id": 13954, "enchant": { "name": "Mystic Rugged Armor Kit", "id": 8492, "spellId": 1254770 }, "slot": "FEET" },
+        { "name": "Bracers of Prosperity", "id": 18525, "enchant": { "name": "Enchant Bracer - Healing Power", "id": 2566, "spellId": 23802 }, "slot": "WRISTS" },
+        { "name": "Mender's Leather Gauntlets", "id": 252551, "enchant": { "name": "Enchant Gloves - Healing Power", "id": 2617, "spellId": 25079 }, "acquired": true, "slot": "HANDS" },
+        { "name": "Fordring's Seal", "id": 16058, "slot": "FINGER_1" },
+        { "name": "Rosewine Circle", "id": 13178, "slot": "FINGER_2" },
+        { "name": "Serenity Field", "id": 272439, "slot": "TRINKET_1" },
+        { "name": "Royal Seal of Eldre'Thalas", "id": 18470, "acquired": true, "slot": "TRINKET_2" },
+        { "name": "Drape of Recovery", "id": 272413, "slot": "BACK" },
+        { "name": "Gift of the Elven Magi", "id": 13360, "enchant": { "name": "Enchant Weapon - Healing Power", "id": 2505, "spellId": 22750 }, "slot": "MAIN_HAND" },
+        { "name": "Penelope's Rose", "id": 15805, "enchant": { "name": "Enchant Off-Hand - Excellent Spirit", "id": 7660, "spellId": 1219578 }, "slot": "OFF_HAND" },
+        { "name": "Idol of Synthesis", "id": 272429, "slot": "RANGED" }
+    ],
+    "consumables": [],
+    "buffs": [],
+    "talents": [],
+    "points": [ { "name": "Restoration EP", "stats": { "healing": 1, "spellDamage": 1, "intellect": 0.3, "spirit": 0.46, "mp5": 3, "crit": 10, "mana": 0.02 } } ],
+    "stats": { "agility": 65, "crit": 4.21, "mainHandSpeed": 1.5, "mana": 4054 },
+    "exportOptions": { "buffs": true, "talents": true }
+}
