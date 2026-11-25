@@ -11,7 +11,9 @@ local frame, edit, scroll, placeholder, preview, importBtn
 
 -- char is a "Name-Realm" key, or "@export" (the name inside the export) or
 -- "@typed" (a name typed in) for a character the addon hasn't been logged in on.
-local st = { text = nil, parsed = nil, err = nil, char = nil, name = "", typedName = nil }
+-- spec is the spec group picked for the list (0 = neither); nil until one is
+-- picked, and then TargetSpec chooses.
+local st = { text = nil, parsed = nil, err = nil, char = nil, name = "", typedName = nil, spec = nil }
 
 local function TargetName()
     if st.char == "@export" then return st.parsed and st.parsed.forName end
@@ -26,20 +28,42 @@ local function TargetKey()
     return st.char
 end
 
+-- The spec group the list will be tied to, 0 for neither: the one picked, else
+-- the one a list of the same name already has, else what the export's names
+-- point at when that spec has no list yet.
+local function TargetSpec()
+    local key = TargetKey()
+    if not key or NS.SpecCount(key) < 2 then return 0 end
+    if st.spec then return st.spec end
+    local set = st.parsed
+    if not set then return 0 end
+    local name = (st.name or ""):match("^%s*(.-)%s*$")
+    if name == "" then name = set.name end
+    local old = NS.FindSet(key, name)
+    if old then return old.spec or 0 end
+    local guess = NS.GuessSpec(key, set)
+    if guess and not NS.SpecSet(key, guess) then return guess end
+    return 0
+end
+
 local function Reparse(force)
     local text = edit:GetText() or ""
-    if not force and text == st.text then return end
+    local changed = text ~= st.text
+    if not force and not changed then return end
     st.text = text
+    if changed then st.spec = nil end -- a new paste starts with no spec picked
     if not text:find("%S") then
         st.parsed, st.err = nil, nil
     else
         st.parsed, st.err = NS.ParseExport(text)
     end
-    if st.parsed then
+    if st.parsed and changed then
+        -- A new paste: its own name, and the character the export was made for
+        -- when that's one of yours (otherwise this one). The same text read
+        -- again (Import does that) keeps the name and character picked since.
         st.name = st.parsed.name
-        -- The character the export was made for, when that's one of yours; otherwise this one.
         st.char = NS.FindChar(st.parsed.forName) or NS.playerKey
-    elseif st.char == "@export" then
+    elseif not st.parsed and st.char == "@export" then
         st.char = NS.playerKey
     end
     UI.RefreshAll()
@@ -56,13 +80,18 @@ local function DoImport()
 
     local name = (st.name or ""):match("^%s*(.-)%s*$")
     if name == "" then name = set.name end
+    local spec = TargetSpec()
     local saved, replaced = NS.SaveSet(key, set, name)
+    if NS.SpecCount(key) >= 2 then
+        saved.spec = nil
+        if spec ~= 0 then NS.SetSpec(key, spec, saved.name) end
+    end
     local _, total, _, eTotal = NS.Progress(saved)
     NS.Print(("%s \"%s\" for %s: %d items, %d enchants."):format(
         replaced and "Replaced" or "Imported", saved.name, NS.CharName(key), total, eTotal))
 
     -- The saved table is the parsed one, so drop it here before anything else can reuse it.
-    st.parsed, st.err, st.text, st.name = nil, nil, "", ""
+    st.parsed, st.err, st.text, st.name, st.spec = nil, nil, "", "", nil
     edit:SetText("")
     frame:Hide()
     NS.ShowMain(key, saved.name)
@@ -79,6 +108,7 @@ StaticPopupDialogs["GEARLIST_OTHER_CHAR"] = {
         if name ~= "" then
             st.typedName = name
             st.char = NS.FindChar(name) or "@typed"
+            st.spec = nil
             UI.RefreshAll()
         end
     end,
@@ -104,6 +134,21 @@ local function Targets()
         items[#items + 1] = { value = "@typed", label = st.typedName .. " |cff808080(not logged in yet)|r" }
     end
     items[#items + 1] = { value = "@other", label = "Another character..." }
+    return items
+end
+
+-- The spec choices for the chosen character: neither, then its two specs.
+local function SpecChoices()
+    local items = { { value = 0, label = "Either spec" } }
+    local key = TargetKey()
+    if key and NS.SpecCount(key) >= 2 then
+        for g = 1, 2 do
+            local label = NS.SpecName(key, g)
+            local tied = NS.SpecSet(key, g)
+            if tied then label = label .. "  |cff808080(now: " .. tied.name .. ")|r" end
+            items[#items + 1] = { value = g, label = label }
+        end
+    end
     return items
 end
 
@@ -220,7 +265,7 @@ local function Build()
     preview:SetHeight(112)
 
     local forLabel = UI.Text(body, "Apply to", "GameFontNormal")
-    forLabel:SetPoint("BOTTOMLEFT", 0, 46)
+    forLabel:SetPoint("BOTTOMLEFT", 0, 76)
     local charDD = UI.Dropdown(body, 250, Targets, function()
         if not st.char then st.char = NS.playerKey end
         return st.char
@@ -229,9 +274,26 @@ local function Build()
             StaticPopup_Show("GEARLIST_OTHER_CHAR")
         else
             st.char = v
+            st.spec = nil -- another character's specs are its own
         end
     end)
     charDD:SetPoint("LEFT", forLabel, "RIGHT", 10, 0)
+
+    -- Which of the character's two specs the list is for. Greyed out for a
+    -- character with one spec, or one the addon hasn't seen logged in.
+    local specLabel = UI.Text(body, "Spec", "GameFontNormal")
+    specLabel:SetPoint("BOTTOMLEFT", 0, 46)
+    local specDD = UI.Dropdown(body, 250, SpecChoices, TargetSpec, function(v) st.spec = v end)
+    specDD:SetPoint("LEFT", charDD, "LEFT", 0, -30)
+    local specRefresh = specDD.Refresh
+    function specDD:Refresh()
+        specRefresh(self)
+        local key = TargetKey()
+        local dual = key ~= nil and NS.SpecCount(key) >= 2
+        self:SetActive(dual)
+        specLabel:SetAlpha(dual and 1 or 0.5)
+    end
+    frame.specDD = specDD
 
     local nameLabel = UI.Text(body, "List name", "GameFontNormal")
     nameLabel:SetPoint("LEFT", charDD, "RIGHT", 22, 0)

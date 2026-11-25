@@ -7,7 +7,7 @@ A WoW Forever addon that turns a gear set from [sixtyupgrades.com/forever](https
 1. On the site, open your set and click **Export**. Copy all of the text.
 2. In game, `/gearlist import` (or the Import button in the list window).
 3. Click in the box and press Ctrl+V.
-4. Pick the character under **Apply to**, change the list name if you want, and click Import.
+4. Pick the character under **Apply to**, change the list name if you want, and click Import. A character with two specs also gets a **Spec** choice (see Dual spec).
 
 The character can be any the addon has been logged in on, the one named in the export, or a name you type. A list filed under a typed name moves to the real character the first time you log in on it. Importing a list with the same name as an existing one replaces it and keeps your hand ticks on slots that didn't change.
 
@@ -16,6 +16,17 @@ The character can be any the addon has been logged in on, the one named in the e
 One line per slot: the slot, the item, an icon for the kind of source, the details (where it is, or where it comes from while it's missing), what it costs (gold, or token amounts with their icons), the reputation it needs, and its enchant. Click a column's name to sort by it and again to reverse; Slot puts the character-sheet order back. Right-click a column's name to filter by it (a kind of source, a dungeon, a currency, a faction, enchants still to do...). Filters on several columns combine and aren't saved. A ring or trinket counts in either of its two slots. Right-click the item half or the enchant half of a row to tick it by hand. Shift-click links the item, Ctrl-click tries it on. Hover a row for the full detail.
 
 A small icon left of the source says what kind it is: skull for a boss or creature, quest mark for a quest (the text is then just the quest's name), vendor bag or the currency's icon for a vendor, the profession's icon for crafted gear, a chest, a bag for a world drop, a gold coin for a bind-on-equip item.
+
+## Dual spec
+
+On a character with two specs, the window has a button for each, named after the talent tree with the most points. A list can be tied to a spec, one list per spec.
+
+- Click a spec's button to show its list. If it has none yet, the click asks which list to use.
+- Right-click a spec's button to change its list, or to untie it.
+- Switching spec in game switches the window to that spec's list. Logging in does the same.
+- The import window picks the spec from the export's names ("resto", "Restoration EP") when that spec has no list yet. Change it under **Spec**, or pick Either spec to leave the list untied.
+
+Tooltips and chat lines still cover every list, whichever spec you're in. Another character's specs are known from the last time you were on it.
 
 ## Where you are
 

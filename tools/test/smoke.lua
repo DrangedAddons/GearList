@@ -155,6 +155,29 @@ C_MerchantFrame = { GetItemInfo = function() return { price = 150000 } end }
 function GetMerchantItemCostInfo() return 1 end
 function GetMerchantItemCostItem() return 1, 25, "|cffffffff|Hitem:226404::::|h[Tarnished Undermine Real]|h|r", nil end
 
+-- Dual spec, read the way Forever gives it: two builds, each with points in the class's three trees.
+SPEC = { n = 2, active = 1, spent = { { [1] = 5, [2] = 11, [3] = 35 }, { [1] = 14, [2] = 32, [3] = 5 } } }
+function GetNumSpecGroups() return SPEC.n end
+C_SpecializationInfo = {
+    GetActiveSpecGroup = function() return SPEC.active end,
+    GetCombatConfigIDForSpecGroup = function(g) return 100 + g end,
+}
+C_Traits = {
+    GetConfigInfo = function() return { treeIDs = { 7 } } end,
+    GetGroupDisplayInfoByTreeID = function() return {
+        { groupID = 3, displayName = "Restoration", orderIndex = 3 },
+        { groupID = 1, displayName = "Balance", orderIndex = 1 },
+        { groupID = 2, displayName = "Feral Combat", orderIndex = 2 },
+    } end,
+    GetGroupCurrencyInfo = function(configID, ids)
+        local out = {}
+        for i, id in ipairs(ids) do
+            out[i] = { traitNodeGroupID = id, currencyInfos = { { spent = SPEC.spent[configID - 100][id] } } }
+        end
+        return out
+    end,
+}
+
 local function ReadFile(path)
     local fh = assert(io.open(path, "rb"))
     local s = fh:read("*a")
@@ -541,6 +564,77 @@ Check(#lines == 2 and lines[2] == "Gear list: Altmage: healing, Neck", "tooltip:
 NS.DeleteSet(alt, "healing")
 Check(not db.sets[alt] and not db.chars[alt], "alt: deleting its last list forgets the typed name")
 Check(#list.data == 17 and list.rows[1].item == Entry(252561), "window: falls back to your own list")
+
+-- Dual spec: lists tied to a spec, a button for each, and the list follows the spec you're in
+local T = GearListFrame.specTabs
+local resto = NS.FindSet(KEY, "resto")
+Check(db.chars[KEY].specs.n == 2 and db.chars[KEY].specs.active == 1 and NS.SpecName(KEY, 1) == "Restoration"
+    and NS.SpecName(KEY, 2) == "Feral Combat", "spec: both builds read and named after their biggest tree")
+Check(T[1]:IsShown() and T[2]:IsShown() and T[1].text:GetText() == "Restoration" and T[2].text:GetText() == "Feral Combat"
+    and not T[1].line:IsShown() and not T[2].line:IsShown(), "spec: a button for each, neither lit while no list is tied")
+Check(resto.pointsName == "Restoration EP" and NS.GuessSpec(KEY, resto) == 1 and NS.GuessSpec(KEY, { name = "feral tank" }) == 2
+    and NS.GuessSpec(KEY, { name = "pre-raid" }) == nil and NS.GuessSpec(KEY, { name = "resto and feral" }) == nil,
+    "spec: guessed from the list's names, not when neither or both fit")
+local so = F.specOptions(1)
+Check(#so == 2 and so[1].value == "resto" and so[2].value == false, "spec: a spec's menu offers each list, then none")
+T[1]:Click() -- no list yet: opens that menu
+F.setSpecList(1, "resto")
+Check(resto.spec == 1 and T[1].line:IsShown() and not T[2].line:IsShown(), "spec: list tied, its button lit")
+T[1]:GetScript("OnEnter")(T[1])
+
+-- A second list, imported: the spec is picked from its names, and the name typed in is kept
+local FERAL = SAMPLE:gsub('"name": "resto"', '"name": "feral"'):gsub("Restoration EP", "Feral EP")
+SlashCmdList.GEARLIST("import")
+edit:SetText(FERAL)
+edit:GetScript("OnTextChanged")(edit)
+GearListImport:GetScript("OnUpdate")(GearListImport, 1)
+local specDD = GearListImport.specDD
+Check(specDD.text:GetText() == "Feral Combat" and specDD:IsEnabled(), "import: spec picked from the export's names (" .. tostring(specDD.text:GetText()) .. ")")
+local nameEdit
+for _, c in ipairs(GearListImport.body._children) do
+    if c._type == "EditBox" and c._scripts.OnEnterPressed then nameEdit = c end
+end
+nameEdit:SetText("kitty")
+nameEdit:GetScript("OnEnterPressed")(nameEdit)
+for _, c in ipairs(GearListImport.body._children) do
+    if c._type == "Button" and (c:GetText() == "Replace" or c:GetText() == "Import") then importBtn = c end
+end
+Check(importBtn:GetText() == "Import", "import: a new name is a new list")
+importBtn:Click()
+local kitty = NS.FindSet(KEY, "kitty")
+Check(#db.sets[KEY] == 2 and kitty and kitty.spec == 2 and resto.spec == 1, "import: filed under the typed name, tied to the second spec")
+Check(list.rows[1].item == kitty.items[1] and T[2].line:IsShown() and not T[1].line:IsShown(), "spec: the new list is on screen, its button lit")
+T[1]:Click()
+Check(list.rows[1].item == resto.items[1] and db.active[KEY] == "resto" and T[1].line:IsShown(), "spec: a click shows the other spec's list")
+
+SPEC.active = 2
+FireEvent("ACTIVE_TALENT_GROUP_CHANGED")
+FlushTimers()
+Check(db.chars[KEY].specs.active == 2 and db.active[KEY] == "kitty" and list.rows[1].item == kitty.items[1] and T[2].line:IsShown(),
+    "spec: switching spec in game switches the list")
+T[1]:Click()
+FireEvent("PLAYER_TALENT_UPDATE")
+FlushTimers()
+Check(db.active[KEY] == "resto" and list.rows[1].item == resto.items[1], "spec: it only follows a switch, a list you opened stays up")
+
+NS.SaveSet(KEY, NS.ParseExport(FERAL), "kitty")
+kitty = NS.FindSet(KEY, "kitty")
+Check(kitty.spec == 2, "spec: replacing a list keeps its spec")
+F.setSpecList(1, "kitty")
+Check(kitty.spec == 1 and resto.spec == nil and Has(F.specOptions(2), "kitty").label:find("Restoration", 1, true),
+    "spec: one list per spec, a list given to the other spec moves")
+F.setSpecList(1, false)
+Check(kitty.spec == nil and not T[1].line:IsShown() and not T[2].line:IsShown(), "spec: No list unties it")
+NS.DeleteSet(KEY, "kitty")
+NS.ShowMain(KEY, "resto")
+
+SPEC.n, SPEC.active = 1, 1
+FireEvent("PLAYER_TALENT_UPDATE")
+FlushTimers()
+Check(not T[1]:IsShown() and not T[2]:IsShown() and NS.SpecCount(KEY) == 1, "spec: no buttons for a character with one spec")
+SlashCmdList.GEARLIST("import")
+Check(not GearListImport.specDD:IsEnabled() and GearListImport.specDD.text:GetText() == "Either spec", "import: spec choice greyed out with one spec")
+GearListImport:Hide()
 
 -- Settings
 SlashCmdList.GEARLIST("config")

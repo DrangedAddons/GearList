@@ -22,7 +22,7 @@ local DEFAULTS = {
     tab = "gear",     -- the list window's view: "gear" or "dungeons"
     sortKey = "slot", -- the gear list's sort column; "slot" is the character-sheet order
     sortDesc = false,
-    chars = {},       -- "Name-Realm" -> { name, realm, class, faction, level, seen, typed }
+    chars = {},       -- "Name-Realm" -> { name, realm, class, faction, level, seen, typed, specs }
     sets = {},        -- "Name-Realm" -> { set, ... }
     active = {},      -- "Name-Realm" -> name of the set last looked at
     vendors = {},     -- itemID -> { npc, zone, gold, costs } read at a merchant (Sources.lua)
@@ -174,9 +174,11 @@ local function RegisterPlayer()
         end
     end
     local _, class = UnitClass("player")
+    local was = db.chars[key]
     db.chars[key] = {
         name = name, realm = realm, class = class,
         faction = UnitFactionGroup("player"), level = UnitLevel("player"), seen = time(),
+        specs = was and was.specs or nil, -- read again once the talents are in (ReadSpecs)
     }
 end
 
@@ -212,6 +214,12 @@ function NS.ParseExport(text)
     }
     if set.name == "" then set.name = "Gear list" end
     if set.forName == "" then set.forName = nil end
+    -- What the site calls the set's stat weights ("Restoration EP"): a hint at the spec it's for.
+    local points = type(data.points) == "table" and data.points[1]
+    if type(points) == "table" and type(points.name) == "string" then
+        set.pointsName = Clean(points.name, 40)
+        if set.pointsName == "" then set.pointsName = nil end
+    end
 
     for n, it in ipairs(data.items) do
         local id = type(it) == "table" and tonumber(it.id)
@@ -296,6 +304,7 @@ function NS.SaveSet(key, set, name)
                 if e.ench and o.ench and e.ench.id == o.ench.id then e.emark = o.emark end
             end
         end
+        set.spec = old.spec -- still the list for the spec it was tied to
         db.sets[key][at] = set
     else
         table.insert(db.sets[key], set)
@@ -319,6 +328,159 @@ function NS.DeleteSet(key, name)
     end
     index = nil
     NS.Changed()
+end
+
+---------------------------------------------------------
+--  SECTION: Dual spec
+---------------------------------------------------------
+-- The game keeps two talent builds, spec groups 1 and 2. A list can be tied to
+-- one of them (set.spec), and a group has one list at most. The list tied to
+-- the group you're in is the one that opens. A character's groups can only be
+-- read while you're on it, so what was read is kept in its record:
+--   specs = { n = how many groups, active = the one it's in, names = { [group] = talent tree } }
+
+-- The talent tree with the most points in a group's build, which is what
+-- players call the spec. false with no points spent, nil while the game has
+-- no build to read.
+local function ReadSpecName(group)
+    local configID = C_SpecializationInfo.GetCombatConfigIDForSpecGroup(group)
+    local config = configID and C_Traits.GetConfigInfo(configID)
+    local treeID = config and config.treeIDs and config.treeIDs[1]
+    if not treeID then return nil end
+    -- The class's three trees are trait groups of the one tree.
+    local trees = C_Traits.GetGroupDisplayInfoByTreeID(treeID)
+    if type(trees) ~= "table" or #trees == 0 then return nil end
+    table.sort(trees, function(a, b) return a.orderIndex < b.orderIndex end)
+    local ids = {}
+    for i, t in ipairs(trees) do ids[i] = t.groupID end
+    local spent = {}
+    for _, g in ipairs(C_Traits.GetGroupCurrencyInfo(configID, ids) or {}) do
+        local c = g.currencyInfos and g.currencyInfos[1]
+        if c then spent[g.traitNodeGroupID] = c.spent end
+    end
+    local name, best = false, 0
+    for _, t in ipairs(trees) do
+        local n = spent[t.groupID] or 0
+        if n > best and type(t.displayName) == "string" and t.displayName ~= "" then name, best = t.displayName, n end
+    end
+    return name
+end
+
+-- Reads this character's spec groups into its record. Returns the group it's in.
+local function ReadSpecs()
+    local c = db.chars[NS.playerKey]
+    if not c then return 1 end
+    local okN, n = pcall(GetNumSpecGroups)
+    n = (okN and type(n) == "number" and n >= 2) and 2 or 1
+    local okA, active = pcall(function() return C_SpecializationInfo.GetActiveSpecGroup() end)
+    active = (okA and active == 2 and n == 2) and 2 or 1
+    local was = c.specs and c.specs.names or {}
+    local names = {}
+    for g = 1, n do
+        local ok, name = pcall(ReadSpecName, g)
+        if ok and name ~= nil then
+            names[g] = name or nil
+        else
+            names[g] = was[g] -- not readable right now: keep what it was called
+        end
+    end
+    c.specs = { n = n, active = active, names = names }
+    return active
+end
+
+-- How many spec groups the character had when last seen (1 until then).
+function NS.SpecCount(key)
+    local c = db.chars[key]
+    return c and c.specs and c.specs.n or 1
+end
+
+function NS.ActiveSpec(key)
+    local c = db.chars[key]
+    return c and c.specs and c.specs.active or 1
+end
+
+function NS.SpecName(key, group)
+    local c = db.chars[key]
+    local name = c and c.specs and c.specs.names and c.specs.names[group]
+    return name or ("Spec " .. group)
+end
+
+-- The list tied to a spec group, if any.
+function NS.SpecSet(key, group)
+    for _, set in ipairs(NS.SetsFor(key)) do
+        if set.spec == group then return set end
+    end
+end
+
+-- Ties the named list to the group (no name: the group has no list). A list
+-- tied to the other group moves over.
+function NS.SetSpec(key, group, name)
+    for _, set in ipairs(NS.SetsFor(key)) do
+        if set.spec == group then set.spec = nil end
+    end
+    local set = name and NS.FindSet(key, name)
+    if set then set.spec = group end
+    NS.Changed()
+end
+
+local function Words(text)
+    local out = {}
+    for w in tostring(text or ""):lower():gmatch("%a+") do
+        if #w >= 3 then out[#out + 1] = w end
+    end
+    return out
+end
+
+-- Which of the character's groups a list looks made for: its name and the
+-- name of its stat weights ("resto", "Restoration EP") against each group's
+-- talent tree, a word of one starting a word of the other. nil when neither
+-- group fits or both do.
+function NS.GuessSpec(key, set)
+    local c = db.chars[key]
+    local specs = c and c.specs
+    if not specs or specs.n ~= 2 then return nil end
+    local said = Words((set.name or "") .. " " .. (set.pointsName or ""))
+    local hit
+    for g = 1, 2 do
+        local fits = false
+        for _, t in ipairs(Words(specs.names[g])) do
+            for _, w in ipairs(said) do
+                if t:sub(1, #w) == w or w:sub(1, #t) == t then fits = true end
+            end
+        end
+        if fits then
+            if hit then return nil end
+            hit = g
+        end
+    end
+    return hit
+end
+
+-- Reads the groups again and, when the one you're in changed (or this is the
+-- first read of the session), makes its list the one on show.
+local specSeen
+local function FollowSpec()
+    if not NS.playerKey then return end
+    local active = ReadSpecs()
+    if active ~= specSeen then
+        specSeen = active
+        local set = NS.SpecSet(NS.playerKey, active)
+        if set then
+            db.active[NS.playerKey] = set.name
+            if NS.OnSpecList then NS.OnSpecList(set.name) end
+        end
+    end
+    NS.Changed()
+end
+
+local specQueued = false
+local function QueueSpecs()
+    if specQueued then return end
+    specQueued = true
+    C_Timer.After(0.3, function()
+        specQueued = false
+        FollowSpec()
+    end)
 end
 
 ---------------------------------------------------------
@@ -562,6 +724,7 @@ local ev = CreateFrame("Frame")
 for _, name in ipairs({
     "ADDON_LOADED", "PLAYER_LOGIN", "PLAYER_ENTERING_WORLD", "PLAYER_EQUIPMENT_CHANGED",
     "UNIT_INVENTORY_CHANGED", "BAG_UPDATE_DELAYED", "BANKFRAME_OPENED", "PLAYERBANKSLOTS_CHANGED",
+    "ACTIVE_TALENT_GROUP_CHANGED", "PLAYER_TALENT_UPDATE", "TRAIT_CONFIG_UPDATED",
 }) do
     pcall(ev.RegisterEvent, ev, name) -- an event this client doesn't have is skipped
 end
@@ -589,10 +752,14 @@ ev:SetScript("OnEvent", function(_, event, arg1)
         RegisterPlayer()
         HookTooltips()
     elseif event == "PLAYER_ENTERING_WORLD" then
+        FollowSpec()
         NS.QueueScan()
         C_Timer.After(10, function() announceReady = true end)
     elseif event == "UNIT_INVENTORY_CHANGED" then
         if arg1 == "player" then NS.QueueScan() end
+    elseif event == "ACTIVE_TALENT_GROUP_CHANGED" or event == "PLAYER_TALENT_UPDATE" or event == "TRAIT_CONFIG_UPDATED" then
+        -- A spec switch, or talents moved (which can rename a spec).
+        QueueSpecs()
     else
         NS.QueueScan()
     end

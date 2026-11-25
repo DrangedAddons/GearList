@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.12.0
+- Dual spec. On a character with two specs the window has a button for each, named after its biggest talent tree (Restoration, Feral Combat). Tie a list to each spec and click a button to look at that spec's list; right-click a button to change which list it uses.
+- Switching spec in game switches the window to that spec's list, and so does logging in.
+- The import window has a Spec choice. It picks the spec from the export's names ("resto", "Restoration EP") when that spec has no list yet. Replacing a list keeps its spec.
+- Fix: the list name and character you picked in the import window were put back to the export's own when you clicked Import.
+
 ## 0.11.1
 - The Cost column puts the amount first and what it is after it: "45g (Materials)" for crafted gear and "45g (Auction)" for auction prices, in place of "mats 45g" and "AH 45g". The tooltips match.
 - The Cost column is a little wider so the longer text fits.

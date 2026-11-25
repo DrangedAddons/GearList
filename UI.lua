@@ -409,6 +409,101 @@ local function Tab(parent, text, width, key)
     return UI.Track(b)
 end
 
+-- What a spec's right-click menu offers: each of the character's lists, then none.
+local function SpecOptions(group)
+    local items = {}
+    for _, set in ipairs(NS.SetsFor(view.char)) do
+        local label = set.name
+        if set.spec and set.spec ~= group then
+            label = label .. "  |cff808080(" .. NS.SpecName(view.char, set.spec) .. ")|r"
+        end
+        items[#items + 1] = { value = set.name, label = label }
+    end
+    if #items == 0 then return { { value = "@import", label = "Import a list..." } } end
+    items[#items + 1] = { value = false, label = "No list" }
+    return items
+end
+
+local function SetSpecList(group, v)
+    if v == "@import" then
+        NS.ShowImport()
+        return
+    end
+    NS.SetSpec(view.char, group, v or nil)
+    if v then
+        view.set = v
+        NS.db.active[view.char] = v
+    end
+    UI.RefreshAll()
+end
+
+-- One of the character's two specs, named after its talent tree. Click shows
+-- the list tied to it (or asks which list that is, when it has none);
+-- right-click picks its list. Lit while its list is the one on screen. Hidden
+-- for a character with one spec.
+local function SpecTab(parent, group)
+    local b = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    b:SetSize(100, 22)
+    UI.Backdrop(b, 0.1, 0.1, 0.11, 1)
+    b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    b.text = UI.Text(b, "", "GameFontHighlightSmall")
+    b.text:SetPoint("LEFT", 4, 0)
+    b.text:SetPoint("RIGHT", -4, 0)
+    b.text:SetJustifyH("CENTER")
+    b.text:SetWordWrap(false)
+    b.line = b:CreateTexture(nil, "OVERLAY")
+    b.line:SetPoint("BOTTOMLEFT", 1, 1)
+    b.line:SetPoint("BOTTOMRIGHT", -1, 1)
+    b.line:SetHeight(2)
+    b:SetScript("OnClick", function(self, mouse)
+        local tied = NS.SpecSet(view.char, group)
+        if mouse == "RightButton" or not tied then
+            UI.OpenMenu(self, SpecOptions(group), tied and tied.name or false, function(v) SetSpecList(group, v) end)
+            return
+        end
+        view.set = tied.name
+        NS.db.active[view.char] = tied.name
+        UI.RefreshAll()
+    end)
+    b:SetScript("OnEnter", function(self)
+        local tied = NS.SpecSet(view.char, group)
+        GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT")
+        GameTooltip:SetText(NS.SpecName(view.char, group), 1, 0.82, 0)
+        if NS.ActiveSpec(view.char) == group then
+            GameTooltip:AddLine(Own() and "The spec you're in" or "The spec it was in when you last played it", 0.6, 0.6, 0.6)
+        end
+        GameTooltip:AddLine(tied and ("List: " .. tied.name) or "No list yet", 1, 1, 1)
+        GameTooltip:AddLine(tied and "|cffffd100Click|r to show its list" or "|cffffd100Click|r to pick its list", 1, 1, 1)
+        if tied then GameTooltip:AddLine("|cffffd100Right-click|r to change its list", 1, 1, 1) end
+        GameTooltip:Show()
+    end)
+    b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    function b:Refresh()
+        Resolve()
+        local dual = NS.SpecCount(view.char) >= 2
+        self:SetShown(dual)
+        if not dual then return end
+        local tied = NS.SpecSet(view.char, group)
+        local on = tied ~= nil and tied.name == view.set
+        self.text:SetText(NS.SpecName(view.char, group))
+        self.line:SetColorTexture(NS.AccentColor())
+        self.line:SetShown(on)
+        if on then
+            self.text:SetTextColor(1, 1, 1)
+        elseif tied then
+            self.text:SetTextColor(0.6, 0.6, 0.6)
+        else
+            self.text:SetTextColor(0.4, 0.4, 0.4) -- nothing to show yet
+        end
+    end
+    return UI.Track(b)
+end
+
+-- The list for the spec you just switched to (Core's FollowSpec).
+function NS.OnSpecList(name)
+    if view.char == NS.playerKey then view.set = name end
+end
+
 ---------------------------------------------------------
 --  SECTION: Sorting
 ---------------------------------------------------------
@@ -734,11 +829,24 @@ local function Build()
     frame = UI.Window({ name = "GearListFrame", title = "Gear List", width = WIDTH, height = 44 + 26 + HEAD_H + listH + 16 })
     local body = frame.body
 
-    -- Row 1: the view's tabs on the left, whose list on the right.
+    -- Row 1: the view's tabs and the specs on the left, whose list on the right.
     local gearTab = Tab(body, "Gear", 80, "gear")
     gearTab:SetPoint("TOPLEFT", 0, 0)
     local dungeonTab = Tab(body, "Dungeons", 90, "dungeons")
     dungeonTab:SetPoint("LEFT", gearTab, "RIGHT", 4, 0)
+
+    -- The character's two specs, when it has two.
+    frame.specTabs = {}
+    for g = 1, 2 do
+        local tab = SpecTab(body, g)
+        if g == 1 then
+            tab:SetPoint("LEFT", dungeonTab, "RIGHT", 16, 0)
+        else
+            tab:SetPoint("LEFT", frame.specTabs[1], "RIGHT", 4, 0)
+        end
+        frame.specTabs[g] = tab
+    end
+    frame.specOptions, frame.setSpecList = SpecOptions, SetSpecList
 
     local settings = UI.Button(body, "Settings", 66, 22, function() NS.ShowConfig() end)
     settings:SetPoint("TOPRIGHT", 0, 0)

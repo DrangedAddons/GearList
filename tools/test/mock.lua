@@ -201,7 +201,8 @@ function M.SetValue(o, v) o._value = v; Fire(o, "OnValueChanged", v) end
 function M.GetChecked(o) return o._checked end
 function M.SetChecked(o, v) o._checked = v end
 function M.HasFocus() return false end
-function M.IsEnabled() return true end
+function M:SetEnabled(on) self._disabled = not on end
+function M:IsEnabled() return not self._disabled end
 function M.Click(o, button) Fire(o, "OnClick", button or "LeftButton") end
 function M.StartMoving() end
 function M.StopMovingOrSizing() end
