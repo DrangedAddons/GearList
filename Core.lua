@@ -18,6 +18,9 @@ local DEFAULTS = {
     minimap = { hide = false },
     tooltip = true,   -- item tooltips say when the item is on a list
     announce = true,  -- chat line when a listed item or enchant turns up
+    dropBanner = true, -- Drops.lua: banner when a listed item drops
+    dropSound = true,  -- ... a sound with it
+    dropChat = true,   -- ... a chat line, and one when someone else picks a listed item up
     showDone = true,  -- finished slots stay in the list
     tab = "gear",     -- the list window's view: "gear" or "dungeons"
     sortKey = "slot", -- the gear list's sort column; "slot" is the character-sheet order
@@ -615,7 +618,10 @@ local function CheckSet(set, snap, announce)
         end
         if announce and db.announce then
             if st and st ~= "bank" and not e.st then
-                NS.Print(("%s is on your list: %s, %s."):format(LinkOrName(e), set.name, NS.SlotLabel(e.slot)))
+                -- The loot window just said this one dropped (Drops.lua); once is enough.
+                if not (NS.DropJustSaid and NS.DropJustSaid(e.id)) then
+                    NS.Print(("%s is on your list: %s, %s."):format(LinkOrName(e), set.name, NS.SlotLabel(e.slot)))
+                end
             elseif est == true and e.est == false and e.st then
                 NS.Print(("%s is now on %s (%s)."):format(e.ench.name, LinkOrName(e), set.name))
             end
@@ -775,9 +781,11 @@ SlashCmdList.GEARLIST = function(msg)
         NS.ShowImport()
     elseif msg == "config" or msg == "settings" or msg == "options" then
         NS.ShowConfig()
+    elseif msg == "test" then
+        NS.TestDrop()
     elseif msg == "help" or msg == "?" then
         NS.Print("|cffffd100/gl|r (or /gearlist) opens your lists, |cffffd100/gearlist import|r the paste window, "
-            .. "|cffffd100/gearlist config|r the settings. /gl takes the same words.")
+            .. "|cffffd100/gearlist config|r the settings, |cffffd100/gearlist test|r shows the drop alert. /gl takes the same words.")
     else
         NS.ToggleMain()
     end

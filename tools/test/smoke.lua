@@ -190,7 +190,7 @@ local SAMPLE = ReadFile(HERE .. "/sample.json")
 -- Load
 ---------------------------------------------------------
 local NS = LoadAddon(ADDON_DIR, "GearList", {
-    "Theme.lua", "Widgets.lua", "Window.lua", "Json.lua", "Core.lua", "Data/Vendors.lua", "Sources.lua", "UI.lua", "Import.lua", "Config.lua",
+    "Theme.lua", "Widgets.lua", "Window.lua", "Json.lua", "Core.lua", "Data/Vendors.lua", "Sources.lua", "UI.lua", "Drops.lua", "Import.lua", "Config.lua",
 })
 
 -- JSON reader
@@ -636,9 +636,121 @@ SlashCmdList.GEARLIST("import")
 Check(not GearListImport.specDD:IsEnabled() and GearListImport.specDD.text:GetText() == "Either spec", "import: spec choice greyed out with one spec")
 GearListImport:Hide()
 
+-- Drops: a banner, a sound and a chat line when a listed item turns up as loot
+local NOW = 1000
+function GetTime() return NOW end
+SOUNDS_PLAYED = {}
+SOUNDKIT = { LFG_REWARDS = 17316, RAID_WARNING = 8959 } -- no UI_EPICLOOT_TOAST in this client
+function PlaySound(kit) SOUNDS_PLAYED[#SOUNDS_PLAYED + 1] = kit; return true end
+LOOT_ITEM = "%1$s receives loot: %2$s."
+LOOT_ITEM_MULTIPLE = "%s receives loot: %sx%d."
+LOOT_ITEM_PUSHED = "%s receives item: %s."
+LOOT_ITEM_SELF = "You receive loot: %s."
+local SECRET = {}
+function issecretvalue(v) return v == SECRET end
+LOOT, ROLLS = {}, {}
+function GetNumLootItems() return #LOOT end
+function GetLootSlotLink(i) return LOOT[i].link end
+function GetLootSourceInfo(i) return LOOT[i].guid, 1 end
+function GetLootRollItemLink(id) return ROLLS[id] end
+local function Banners()
+    local n, last = 0, nil
+    if GearListDropBanner then
+        for _, c in ipairs({ GearListDropBanner:GetChildren() }) do
+            if c:IsShown() then n, last = n + 1, c end
+        end
+    end
+    return n, last
+end
+local helm = Entry(252561)
+helm.mark = nil
+Check(not NS.ItemDone(helm) and Banners() == 0, "drop: the helm is still missing and no banner is up")
+
+PRINTED = {}
+LOOT = { { link = Link(8170), guid = "Creature-1" }, { link = Link(252561), guid = "Creature-1" } }
+FireEvent("LOOT_READY")
+FireEvent("LOOT_OPENED")
+local shown, row = Banners()
+Check(shown == 1 and row.name:GetText():find("Living Crown", 1, true) and not row.name:GetText():find("[", 1, true)
+    and row.note:GetText():find("Dropped", 1, true) and row.note:GetText():find("resto, Head", 1, true),
+    "drop: one banner for the listed item in the loot window, with its list and slot")
+Check(#SOUNDS_PLAYED == 1 and SOUNDS_PLAYED[1] == 17316, "drop: one sound, the first kit this client has")
+Check(#PRINTED == 1 and PRINTED[1]:find("dropped", 1, true) and PRINTED[1]:find("resto, Head", 1, true),
+    "drop: one chat line though the window fired two events")
+BAGS[0][4] = Link(252561)
+FireEvent("BAG_UPDATE_DELAYED")
+FlushTimers()
+Check(helm.st == "bags" and #PRINTED == 1, "drop: picking it up straight after adds no second line")
+
+NOW = NOW + 60
+LOOT = { { link = Link(252561), guid = "Creature-2" } }
+FireEvent("LOOT_READY")
+Check(#PRINTED == 1 and Banners() == 1, "drop: quiet for an item you already have")
+BAGS[0][4] = nil
+FireEvent("BAG_UPDATE_DELAYED")
+FlushTimers()
+LOOT = { { link = Link(252561), guid = "Creature-1" } }
+FireEvent("LOOT_OPENED")
+Check(not NS.ItemDone(helm) and #PRINTED == 1, "drop: opening the same corpse again stays quiet")
+
+NOW = NOW + 60
+ROLLS[7] = Link(252561)
+FireEvent("START_LOOT_ROLL", 7, 60000)
+shown, row = Banners()
+Check(shown == 2 and row.note:GetText():find("Roll started", 1, true) and #PRINTED == 2
+    and PRINTED[2]:find("up for a roll", 1, true) and #SOUNDS_PLAYED == 2, "drop: a roll starting gets a banner, sound and line")
+LOOT = { { link = Link(252561), guid = "Creature-3" } }
+FireEvent("LOOT_READY")
+Check(#PRINTED == 2 and Banners() == 2, "drop: the loot window and the roll popup moments apart count once")
+row:GetScript("OnUpdate")(row, 5)
+Check(row:IsShown(), "drop: a banner stays up for a few seconds")
+row:GetScript("OnUpdate")(row, 4)
+Check(not row:IsShown() and Banners() == 1, "drop: then it fades and goes")
+
+FireEvent("CHAT_MSG_LOOT", "Thrall-TestRealm receives loot: " .. Link(252561) .. ".")
+Check(#PRINTED == 3 and PRINTED[3]:find("Thrall got", 1, true) and PRINTED[3]:find("Living Crown", 1, true)
+    and PRINTED[3]:find("resto, Head", 1, true), "drop: someone else picking it up gets a chat line with their name")
+FireEvent("CHAT_MSG_LOOT", "Jaina receives item: " .. Link(252561) .. ".")
+Check(#PRINTED == 4 and PRINTED[4]:find("Jaina got", 1, true), "drop: so does an item handed to them")
+FireEvent("CHAT_MSG_LOOT", "You receive loot: " .. Link(252561) .. ".")
+FireEvent("CHAT_MSG_LOOT", "Tester receives loot: " .. Link(252561) .. ".")
+FireEvent("CHAT_MSG_LOOT", "Thrall has selected Need for: " .. Link(252561))
+FireEvent("CHAT_MSG_LOOT", "Thrall receives loot: " .. Link(8170) .. "x3.")
+Check(#PRINTED == 4, "drop: no line for your own pick-up, a roll choice or an unlisted item")
+
+LOOT = { { link = SECRET, guid = SECRET } }
+FireEvent("LOOT_READY")
+FireEvent("CHAT_MSG_LOOT", SECRET)
+ROLLS[8] = SECRET
+FireEvent("START_LOOT_ROLL", 8)
+Check(#PRINTED == 4 and NS.dropError == nil, "drop: loot the game withholds is skipped without an error")
+
+db.dropBanner, db.dropSound, db.dropChat = false, false, false
+NOW = NOW + 60
+ROLLS[9] = Link(252561)
+FireEvent("START_LOOT_ROLL", 9)
+FireEvent("CHAT_MSG_LOOT", "Thrall receives loot: " .. Link(252561) .. ".")
+Check(#PRINTED == 4 and #SOUNDS_PLAYED == 2 and Banners() == 1, "drop: nothing with all three settings off")
+db.dropBanner, db.dropSound, db.dropChat = true, false, true
+
+NS.SaveSet(KEY, NS.ParseExport(SAMPLE), "second")
+NOW = NOW + 60
+SlashCmdList.GEARLIST("test")
+shown, row = Banners()
+Check(#PRINTED == 5 and PRINTED[5]:find("would be announced", 1, true) and row.note:GetText():find("Test", 1, true)
+    and row.note:GetText():find("; ", 1, true) and #SOUNDS_PLAYED == 2,
+    "drop: /gl test shows the alert, naming both lists that want the item, silent with the sound off")
+NS.DeleteSet(KEY, "second")
+db.dropSound = true
+Check(NS.dropError == nil, "drop: no errors caught")
+
 -- Settings
 SlashCmdList.GEARLIST("config")
 Check(GearListConfig and GearListConfig:IsShown(), "settings: opens")
+NOW = NOW + 60
+local before = #PRINTED
+GearListConfig.testDrop:Click()
+Check(#PRINTED == before + 1 and PRINTED[#PRINTED]:find("would be announced", 1, true), "settings: the test button shows the drop alert")
 GearList_OnCompartmentClick()
 Check(not GearListFrame:IsShown(), "compartment click toggles the list")
 

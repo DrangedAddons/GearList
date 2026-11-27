@@ -11,7 +11,7 @@ local frame
 
 local function Build()
     local db = NS.db
-    frame = UI.Window({ name = "GearListConfig", title = "Gear List settings", width = 460, height = 330 })
+    frame = UI.Window({ name = "GearListConfig", title = "Gear List settings", width = 460, height = 414 })
     local body = frame.body
 
     local tip = UI.Check(body, "Say on item tooltips when an item is on a list",
@@ -20,14 +20,23 @@ local function Build()
     local say = UI.Check(body, "Say in chat when a listed item or enchant turns up",
         function() return db.announce end, function(v) db.announce = v end)
     say:SetPoint("TOPLEFT", 0, -28)
+    local banner = UI.Check(body, "Show a banner when a listed item drops",
+        function() return db.dropBanner end, function(v) db.dropBanner = v end)
+    banner:SetPoint("TOPLEFT", 0, -56)
+    local sound = UI.Check(body, "Play a sound when a listed item drops",
+        function() return db.dropSound end, function(v) db.dropSound = v end)
+    sound:SetPoint("TOPLEFT", 0, -84)
+    local dropSay = UI.Check(body, "Say in chat when a listed item drops or someone else gets it",
+        function() return db.dropChat end, function(v) db.dropChat = v end)
+    dropSay:SetPoint("TOPLEFT", 0, -112)
     local done = UI.Check(body, "Show finished slots in the list",
         function() return db.showDone end, function(v) db.showDone = v; NS.Changed() end)
-    done:SetPoint("TOPLEFT", 0, -56)
+    done:SetPoint("TOPLEFT", 0, -140)
     local mm = UI.Check(body, "Show minimap button", function() return not db.minimap.hide end,
         function(v) UI.SetLauncherShown(db.minimap, v) end)
-    mm:SetPoint("TOPLEFT", 0, -84)
+    mm:SetPoint("TOPLEFT", 0, -168)
 
-    local y = -122
+    local y = -206
     if NS.HasEllesmere() then
         local label = UI.Text(body, "Window look", "GameFontNormalSmall")
         label:SetPoint("TOPLEFT", 4, y)
@@ -50,6 +59,9 @@ local function Build()
     close:SetPoint("BOTTOMRIGHT", 0, 0)
     local open = UI.Button(body, "Open the list", 130, 24, function() NS.ShowMain() end)
     open:SetPoint("BOTTOMLEFT", 0, 0)
+    local test = UI.Button(body, "Test the drop alert", 150, 24, function() NS.TestDrop() end)
+    test:SetPoint("LEFT", open, "RIGHT", 8, 0)
+    frame.testDrop = test
 end
 
 function NS.ShowConfig()

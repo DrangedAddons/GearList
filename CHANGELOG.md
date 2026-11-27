@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.13.0
+- A listed item dropping gets a banner above the middle of the screen (icon, name, the list that wants it and its slot), a sound and a chat line. It fires for an item in a loot window you open and for a roll starting.
+- One alert per drop: opening the same corpse again stays quiet, and so does the roll popup that follows the loot window.
+- A chat line says who it was when someone else picks up an item on your list.
+- It covers every list on the character you're on, both specs, and only items you don't have yet.
+- Three new settings, all on: the banner, the sound, the chat lines. `/gl test` and a button in the settings window show the alert for the first missing item on your list.
+- Looting an item straight after its drop line no longer adds the "is on your list" line a second later.
+
 ## 0.12.0
 - Dual spec. On a character with two specs the window has a button for each, named after its biggest talent tree (Restoration, Feral Combat). Tie a list to each spec and click a button to look at that spec's list; right-click a button to change which list it uses.
 - Switching spec in game switches the window to that spec's list, and so does logging in.

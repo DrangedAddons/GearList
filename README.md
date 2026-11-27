@@ -32,6 +32,14 @@ Tooltips and chat lines still cover every list, whichever spec you're in. Anothe
 
 On your own list, rows you can get where you're standing are washed blue: drops and quest rewards of the dungeon you're in, or sources in the zone you're in (a vendor, a quest, a world boss). The window's title counts them. The Dungeons tab marks the same dungeon. All wings of a dungeon light up together.
 
+## When a listed item drops
+
+A banner comes up above the middle of the screen with the item, the list that wants it and its slot, with a sound and a chat line. It fires when the item is in a loot window you open and when a roll starts for it. Each drop is announced once: opening the corpse again, or the roll popup following the loot window, stays quiet.
+
+When someone else picks up an item on your list, a chat line says who.
+
+It covers every list on the character you're on, both specs, and only items you don't have yet. The banner, the sound and the chat lines each have a setting. `/gl test`, or the button in the settings window, shows the alert for the first missing item on your list.
+
 ## The Dungeons tab
 
 Swaps the list for the missing items by dungeon. The dungeon with the most items you still need is at the top, and under each dungeon are its bosses, in the dungeon's own order, with the item each one drops. Quest rewards come after the bosses. A line at the bottom counts the missing items that don't come from a dungeon. Needs the DungeonJournal addon.
@@ -63,6 +71,7 @@ Wowhead answers a scripted fetch of its pages with a bot check, so the pages wer
 - `/gl` (or `/gearlist`, `/glist`): the list
 - `/gl import`: the paste window
 - `/gl config`: settings
+- `/gl test`: show the drop alert
 
 ## Tests
 
