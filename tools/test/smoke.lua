@@ -102,6 +102,26 @@ ForeverDungeonJournal_NS = { DB = { Scholomance = {
         { name = "For Everyone", faction = "Both", rewardItems = { { 13178, "Rosewine Circle", 3 } } },
     },
 } } }
+-- The journal's own pages sit in the same table as the dungeons: a flagged loot
+-- filter page, a recipe search page known only by its borrowed bosses, a page
+-- its dungeon list doesn't have, and a "Recipes" row repeating a dungeon's drops.
+do
+    local DB = ForeverDungeonJournal_NS.DB
+    local function Borrowed()
+        return {
+            { name = "Baroness Anastari", fdjDungeon = "Stratholme", loot = { { 13360, "Gift of the Elven Magi", "Main Hand", 3 } } },
+            { name = "Ramstein the Gorger", fdjDungeon = "Stratholme", loot = { { 18723, "Animated Chain Necklace", "Neck", 3 } } },
+            { name = "Darkmaster Gandling", fdjDungeon = "Scholomance", loot = { { 18386, "Padre's Trousers", "Legs", 3 } } },
+            { name = "Quest giver", fdjDungeon = "Stratholme", loot = { { 13178, "Rosewine Circle", "Finger", 3 } } },
+        }
+    end
+    DB["Loot Filter Results"] = { quests = {}, bosses = Borrowed(), lootFilterPage = true }
+    DB["__FDJ_RECIPE_SEARCH__"] = { bosses = Borrowed() }
+    DB["Some Later Page"] = { bosses = { { name = "Nobody", loot = { { 18723, "Animated Chain Necklace", "Neck", 3 } } } } }
+    table.insert(DB.Stratholme.bosses, { name = "Recipes", trash = true, recipeTab = true,
+        loot = { { 18723, "Animated Chain Necklace", "Neck", 3 } } })
+    ForeverDungeonJournal_NS.ORDER = { "Scholomance", "Stratholme", "Loot Filter Results", "__FDJ_RECIPE_SEARCH__" }
+end
 -- Questie's database: field functions on global tables.
 bit = { band = function(a, b)
     local r, p = 0, 1
@@ -500,6 +520,14 @@ Check(rows[1].dungeon == "Stratholme" and rows[1].count == 3 and rows[5].dungeon
 Check(rows[2].who == "Baroness Anastari" and rows[2].first and rows[2].e.id == 13360 and rows[3].who == "Ramstein the Gorger"
     and rows[4].who == "Quest: For Everyone" and rows[6].who == "Darkmaster Gandling", "dungeons: bosses in dungeon order, quests after")
 Check(others == 9, "dungeons: " .. tostring(others) .. " missing items have no dungeon source")
+local pages = 0
+for _, r in ipairs(rows) do
+    if r.dungeon and r.dungeon ~= "Stratholme" and r.dungeon ~= "Scholomance" then pages = pages + 1 end
+    if r.who == "Recipes" or r.who == "Nobody" then pages = pages + 1 end
+end
+Check(#rows == 6 and pages == 0, "dungeons: the journal's loot filter and recipe pages aren't listed as dungeons")
+local neck = NS.ItemSource(18723, true)
+Check(#neck.places == 1 and neck.places[1] == "Stratholme" and #neck.journal == 1, "sources: one source for the necklace, its real dungeon")
 db.tab = "dungeons"
 NS.Changed()
 local dl = GearListFrame.dungeonList

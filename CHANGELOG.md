@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.13.1
+- Fix: after using DungeonJournal's loot filter, the Dungeons tab listed "Loot Filter Results" as a dungeon, with the same bosses repeated under it, and a row's Details could name it in place of the dungeon. DungeonJournal keeps its filter results and its recipe search in its dungeon table; those pages are skipped now, along with any entry its own dungeon list doesn't have.
+
 ## 0.13.0
 - A listed item dropping gets a banner above the middle of the screen (icon, name, the list that wants it and its slot), a sound and a chat line. It fires for an item in a loot window you open and for a roll starting.
 - One alert per drop: opening the same corpse again stays quiet, and so does the roll popup that follows the loot window.

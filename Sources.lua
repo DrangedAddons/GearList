@@ -273,10 +273,31 @@ local function BuildJournal()
         idx[id] = idx[id] or {}
         table.insert(idx[id], { kind = kind, who = tostring(who or "?"), where = tostring(where), ord = ord })
     end
+    -- The journal also keeps pages of its own in this table as if they were
+    -- dungeons: its loot filter's results ("Loot Filter Results") and its recipe
+    -- search, each a list of bosses borrowed from the real dungeons. A dungeon
+    -- counts when the journal's own list of dungeons (ORDER) has it, when it
+    -- isn't flagged as one of those pages, and when none of its bosses is
+    -- borrowed (a borrowed boss names its real dungeon in fdjDungeon).
+    local real
+    if type(FDJ.ORDER) == "table" and #FDJ.ORDER > 0 then
+        real = {}
+        for _, name in ipairs(FDJ.ORDER) do real[name] = true end
+    end
+    local function IsPage(name, d)
+        if real and not real[name] then return true end
+        if d.lootFilterPage or d.recipeSearch then return true end
+        for _, boss in ipairs(type(d.bosses) == "table" and d.bosses or {}) do
+            if type(boss) == "table" and boss.fdjDungeon ~= nil then return true end
+        end
+        return false
+    end
     for dungeon, d in pairs(DB) do
-        if type(d) == "table" then
+        if type(d) == "table" and not IsPage(dungeon, d) then
             for n, boss in ipairs(type(d.bosses) == "table" and d.bosses or {}) do
-                for _, loot in ipairs(type(boss) == "table" and type(boss.loot) == "table" and boss.loot or {}) do
+                -- A recipeTab "boss" repeats the dungeon's recipe drops; the real bosses have them.
+                local loots = type(boss) == "table" and not boss.recipeTab and type(boss.loot) == "table" and boss.loot or {}
+                for _, loot in ipairs(loots) do
                     if type(loot) == "table" then Add(loot[1], "drop", boss.name, dungeon, n) end
                 end
             end
